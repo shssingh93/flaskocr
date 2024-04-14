@@ -109,20 +109,34 @@ def get_pdfs():
     print(response)
     
     # Initialize a list to store the PDFs information
-    pdfs_info = []
-    
+    pdfs_info = {}
+
     if 'Contents' in response:
-        print(f"\nObjects in bucket 'combinedpdfsbucket':")
         for obj in response['Contents']:
             key = obj['Key']
             # Check if the object is a splitted PDF based on the original PDF name
-            if key.startswith('123456_'):
+            if key.startswith('123456'):
                 # Extract PDF name, last modified, and object URL
                 pdf_name = key.split('_')[0] + '.pdf'
                 last_modified = obj['LastModified']
                 object_url = f"https://combinedpdfsbucket.s3.amazonaws.com/{key}"
-                # Append the PDF information to the list
-                pdfs_info.append({'name': pdf_name, 'last_modified': last_modified, 'object_url': object_url})
+                # Append the PDF information to the dictionary
+                if pdf_name not in pdfs_info:
+                    pdfs_info[pdf_name] = {'original_file': pdf_name, 'subdocuments': []}
+                pdfs_info[pdf_name]['subdocuments'].append({'name': key, 'last_modified': last_modified, 'object_url': object_url})
+    
+    # if 'Contents' in response:
+    #     print(f"\nObjects in bucket 'combinedpdfsbucket':")
+    #     for obj in response['Contents']:
+    #         key = obj['Key']
+    #         # Check if the object is a splitted PDF based on the original PDF name
+    #         if key.startswith('123456_'):
+    #             # Extract PDF name, last modified, and object URL
+    #             # pdf_name = key.split('_')[0] + '.pdf'
+    #             last_modified = obj['LastModified']
+    #             object_url = f"https://combinedpdfsbucket.s3.amazonaws.com/{key}"
+    #             # Append the PDF information to the list
+    #             pdfs_info.append({'name': key, 'last_modified': last_modified, 'object_url': object_url})
     
     else:
         print(f"\nBucket 'combinedpdfsbucket' does not contain any objects.")
