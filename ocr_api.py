@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import pandas as pd
 import pytesseract
@@ -11,6 +12,7 @@ import boto3
 
 
 app = Flask(__name__)
+CORS(app)
 
 def parse_config_file(config_file):
     # Parse the configuration file and extract settings
@@ -40,7 +42,7 @@ def process_text_ocr(page):
 def seperate_sub_documents(pdf_file, output_path, pdf_pages, ocr_locations):
     # Upload the original PDF file to S3
     s3_client = boto3.client('s3')
-    s3_client.upload_file(pdf_file, 'combinedpdfsbucket', f'original/{os.path.basename(pdf_file)}')
+    s3_client.upload_file(pdf_file, 'combinedpdfsbucket', f'{os.path.basename(pdf_file)}')
     # Identify sub-documents based on specified keywords and locations
     curr_subdoc_type = ''
     curr_start_page = 0
@@ -79,6 +81,10 @@ def create_sub_documents(pdf_file, output_path, curr_subdoc_type, curr_start_pag
         pdf_writer.add_page(pdf_reader.pages[page_num])
     with open(output_file_path, 'wb') as output_file:
         pdf_writer.write(output_file)
+    #Upload the subdocuments to S3
+    s3_client = boto3.client('s3')
+    with open(output_file_path, 'rb') as output_file:
+        s3_client.upload_file(output_file.name, 'combinedpdfsbucket', f'{os.path.basename(output_file.name)}')
 
 def seperate_combined_pdfs(config_file):
     
@@ -100,6 +106,7 @@ def get_pdfs():
     # List objects in the bucket
     s3_client = boto3.client('s3')
     response = s3_client.list_objects_v2(Bucket='combinedpdfsbucket')
+    print(response)
     
     # Initialize a list to store the PDFs information
     pdfs_info = []
@@ -120,17 +127,18 @@ def get_pdfs():
     else:
         print(f"\nBucket 'combinedpdfsbucket' does not contain any objects.")
     
+    print(jsonify(pdfs_info))
     # Return the list of PDFs information as JSON
     return jsonify(pdfs_info)
 
-    @app.route('/process_pdfs', methods=['POST'])
-    def process_pdfs():
-        start_time = time.time()
-        config_file = 'Sample.cfg'  
-        seperate_combined_pdfs(config_file)
-        end_time = time.time()
-        execution_time = end_time - start_time
-        return jsonify({"message": "PDFs processed successfully", "execution_time": execution_time})
+@app.route('/process_pdfs', methods=['GET'])
+def process_pdfs():
+    start_time = time.time()
+    config_file = 'Sample.cfg'  
+    seperate_combined_pdfs(config_file)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    return jsonify({"message": "PDFs processed successfully", "execution_time": execution_time})
 
 if __name__ == "__main__":
     app.run(debug=True)  
