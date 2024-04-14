@@ -154,11 +154,26 @@ def get_pdfs():
     # Return the list of PDFs information as JSON
     return jsonify(pdfs_info)
 
-@app.route('/process_pdfs', methods=['GET'])
+@app.route('/process_pdfs', methods=['POST'])
 def process_pdfs():
     start_time = time.time()
     config_file = 'Sample.cfg'  
+    
+
+    # Check if files were uploaded
+    if 'files[]' not in request.files:
+        return jsonify({"message": "No files were uploaded"})
+    
+    # Get the list of uploaded files
+    uploaded_files = request.files.getlist('files[]')
+
+    server_path = '/home/ubuntu/flask_ocr/flaskocr'
+
+    for file in uploaded_files:
+        file.save(os.path.join(server_path, file.filename))
+
     seperate_combined_pdfs(config_file)
+
     end_time = time.time()
     execution_time = end_time - start_time
     return jsonify({"message": "PDFs processed successfully", "execution_time": execution_time})
